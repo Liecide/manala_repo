@@ -8,7 +8,7 @@ const TILE = 40;
 const GRAVITY = 1800;
 const PLAYER_SPEED = 250;
 const JUMP_V = -640;
-const SAVE_KEY = 'manala_v6_save';
+const SAVE_KEY = 'manala_v7_save';
 
 const statsPanel = document.getElementById('statsPanel');
 const inventoryPanel = document.getElementById('inventoryPanel');
@@ -34,6 +34,31 @@ const dialogueText = document.getElementById('dialogueText');
 const dialogueChoices = document.getElementById('dialogueChoices');
 const dialogueClose = document.getElementById('dialogueClose');
 
+const spritePaths = {
+  house: 'assets/sprites/objects/house.png',
+  tree: 'assets/sprites/objects/tree.png',
+  rockCopper: 'assets/sprites/objects/rock_copper.png',
+  rockTin: 'assets/sprites/objects/rock_tin.png',
+  rockIron: 'assets/sprites/objects/rock_iron.png',
+  fish: 'assets/sprites/objects/fishspot.png',
+  forge: 'assets/sprites/objects/forge.png',
+  anvil: 'assets/sprites/objects/anvil.png',
+  bossGate: 'assets/sprites/objects/gate.png',
+  merchant: 'assets/sprites/npcs/merchant.png',
+  banker: 'assets/sprites/npcs/banker.png',
+  healer: 'assets/sprites/npcs/healer.png',
+  Wolf: 'assets/sprites/enemies/wolf.png',
+  Bandit: 'assets/sprites/enemies/bandit.png',
+  Skeleton: 'assets/sprites/enemies/skeleton.png',
+  'Warden of Manala': 'assets/sprites/enemies/warden.png',
+};
+const sprites = {};
+for (const [key, src] of Object.entries(spritePaths)) {
+  const img = new Image();
+  img.src = src;
+  sprites[key] = img;
+}
+
 const itemDefs = {
   bronzeSword: { name: 'Bronze Sword', symbol: '🗡', slot: 'weapon', attack: 4, value: 12 },
   ironSword: { name: 'Iron Sword', symbol: '⚔', slot: 'weapon', attack: 7, value: 26 },
@@ -51,6 +76,7 @@ const itemDefs = {
   bronzeBar: { name: 'Bronze Bar', symbol: '▬', stack: true, value: 6 },
   ironBar: { name: 'Iron Bar', symbol: '▮', stack: true, value: 10 },
   coin: { name: 'Coins', symbol: '¤', stack: true, value: 1 },
+  oldBoot: { name: 'Old Boot', symbol: '⌂', stack: true, value: 1 },
 };
 
 const recipes = {
@@ -85,6 +111,7 @@ const world = {
   cameraX: 0,
   pendingAction: null,
   mouseHint: '',
+  task: null,
 };
 
 function rand(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
@@ -269,6 +296,103 @@ function hideDialogue() { dialogue.classList.add('hidden'); currentDialogue = nu
 function dialogueOpen() { return !dialogue.classList.contains('hidden'); }
 dialogueClose.addEventListener('click', hideDialogue);
 
+function taskLocked() { return !!world.task; }
+function setTask(task) {
+  if (world.task) {
+    log('You are already busy with something.', 'bad');
+    return false;
+  }
+  world.task = { elapsed: 0, stepIndex: 0, ...task };
+  if (task.startText) log(task.startText, '');
+  return true;
+}
+function clearTask(msg = '', cls = '') {
+  if (msg) log(msg, cls);
+  world.task = null;
+}
+function getBatchCount(recipe) {
+  return Math.min(...Object.entries(recipe.needs).map(([id, qty]) => Math.floor(countItem(world.player.inventory, id) / qty)));
+}
+function startFishingTask() {
+  const p = world.player;
+  if (combatLocked()) return log('Fishing during combat is not a thing unless you are clinically cursed.', 'bad');
+  const duration = 3 + Math.random() * 2;
+  setTask({
+    type: 'fishing',
+    duration,
+    timer: duration,
+    label: 'Fishing',
+    startText: 'You cast your line and wait...',
+    onFinish: () => {
+      const roll = Math.random();
+      if (roll < 0.62) {
+        addItem(p.inventory, 'rawFish', 1);
+        gainSkill('fishing', 7);
+        log('You catch a fish.', 'good');
+      } else if (roll < 0.87) {
+        log('Nothing bites. The water mocks you in silence.', 'bad');
+      } else {
+        const junk = Math.random() < 0.5 ? { id: 'oldBoot', qty: 1, text: 'You fish up an old boot. Riveting.' } : { id: 'coin', qty: rand(1, 4), text: 'You fish up a few soggy coins.' };
+        addItem(p.inventory, junk.id, junk.qty);
+        gainSkill('fishing', 3);
+        log(junk.text, 'good');
+      }
+      world.task = null;
+    },
+  });
+}
+function startBatchTask(label, recipe, count, skill, xp) {
+  if (count <= 0) {
+    const msg = `You do not have materials to ${label.toLowerCase()}.`;
+    log(msg, 'bad');
+    setDialogueNotice(msg, 'bad');
+    return;
+  }
+  setTask({
+    type: 'batch',
+    timer: 1,
+    stepTime: 1,
+    remaining: count,
+    label,
+    startText: `${label} started (${count} item${count === 1 ? '' : 's'}).`,
+    onTick: (task) => {
+      if (!hasItems(world.player.inventory, recipe.needs)) {
+        log(`${label} stopped because you ran out of materials.`, 'bad');
+        world.task = null;
+        return;
+      }
+      Object.entries(recipe.needs).forEach(([id, qty]) => removeItem(world.player.inventory, id, qty));
+      Object.entries(recipe.gives).forEach(([id, qty]) => addItem(world.player.inventory, id, qty));
+      gainSkill(skill || recipe.skill, xp || recipe.xp);
+      task.remaining -= 1;
+      setDialogueNotice(`${label}: ${count - task.remaining}/${count}`, 'good');
+      if (task.remaining <= 0) {
+        log(`${label} finished.`, 'good');
+        setDialogueNotice(`${label} finished.`, 'good');
+        world.task = null;
+      } else {
+        task.timer = task.stepTime;
+      }
+    },
+  });
+}
+function updateTask(dt) {
+  const task = world.task;
+  if (!task) return;
+  if (combatLocked()) {
+    clearTask(`${task.label} was interrupted by combat.`, 'bad');
+    return;
+  }
+  task.elapsed += dt;
+  if (task.duration) {
+    task.timer -= dt;
+    if (task.timer <= 0) task.onFinish?.();
+    return;
+  }
+  task.timer -= dt;
+  if (task.timer <= 0) task.onTick?.(task);
+}
+
 function formatNeeds(needs) { return Object.entries(needs).map(([id, qty]) => `${itemDefs[id].name} x${qty}`).join(', '); }
 function tradeBuy(cost, gain, text) {
   const p = world.player;
@@ -369,10 +493,21 @@ function openBankDialogue() {
   ]);
 }
 function openForgeDialogue() {
-  showDialogue('Forge', '<p>Smelt ore into bars or cook fish.</p>', recipes.forge.map(recipe => ({
+  const bronzeRecipe = recipes.forge.find(r => r.name === 'Smelt bronze bar');
+  const ironRecipe = recipes.forge.find(r => r.name === 'Smelt iron bar');
+  const cookRecipe = recipes.forge.find(r => r.name === 'Cook fish');
+  const choices = recipes.forge.map(recipe => ({
     label: `${recipe.name} [${formatNeeds(recipe.needs)}]`, close: false, onClick: () => useRecipe(recipe),
-  })).concat([{ label: 'Close', onClick: () => { } }]));
+  }));
+  choices.push(
+    { label: 'Cook all raw fish', close: false, onClick: () => startBatchTask('Cook All Fish', cookRecipe, getBatchCount(cookRecipe), 'fishing', 4) },
+    { label: 'Smelt all bronze', close: false, onClick: () => startBatchTask('Smelt All Bronze', bronzeRecipe, getBatchCount(bronzeRecipe), 'smithing', 8) },
+    { label: 'Smelt all iron', close: false, onClick: () => startBatchTask('Smelt All Iron', ironRecipe, getBatchCount(ironRecipe), 'smithing', 12) },
+    { label: 'Close', onClick: () => { } },
+  );
+  showDialogue('Forge', '<p>Smelt ore into bars or cook fish. Batch actions process one item per second.</p>', choices);
 }
+
 function openAnvilDialogue() {
   showDialogue('Anvil', '<p>Choose what to smith. Classic click-heavy nonsense, but in a charming way.</p>', recipes.anvil.map(recipe => ({
     label: `${recipe.name} [${formatNeeds(recipe.needs)}]`, close: false, onClick: () => useRecipe(recipe),
@@ -400,7 +535,7 @@ function executeInteraction(target) {
 
   const obj = target.ref;
   if (obj.type === 'tree') { obj.hp -= 1; addItem(p.inventory, 'logs', 1); gainSkill('woodcutting', 8); log('You chop the tree and get logs.', 'good'); if (obj.hp <= 0) { obj.hp = 0; obj.timer = 12; } return; }
-  if (obj.type === 'fish') { addItem(p.inventory, 'rawFish', 1); gainSkill('fishing', 7); log('You catch a fish.', 'good'); return; }
+  if (obj.type === 'fish') { startFishingTask(); return; }
   if (obj.type === 'rockCopper') { obj.hp -= 1; addItem(p.inventory, 'copperOre', 1); gainSkill('mining', 9); log('You mine copper ore.', 'good'); if (obj.hp <= 0) { obj.hp = 0; obj.timer = 14; } return; }
   if (obj.type === 'rockTin') { obj.hp -= 1; addItem(p.inventory, 'tinOre', 1); gainSkill('mining', 9); log('You mine tin ore.', 'good'); if (obj.hp <= 0) { obj.hp = 0; obj.timer = 14; } return; }
   if (obj.type === 'rockIron') { obj.hp -= 1; addItem(p.inventory, 'ironOre', 1); gainSkill('mining', 12); log('You mine iron ore.', 'good'); if (obj.hp <= 0) { obj.hp = 0; obj.timer = 18; } return; }
@@ -525,7 +660,7 @@ function equipIndex(index) {
 function saveGame() {
   if (!world.player) return;
   const p = world.player;
-  const data = { version: 5, bossDead: world.bossDead, player: { name: p.name, x: p.x, hp: p.hp, maxHp: p.maxHp, appearance: p.appearance, inventory: p.inventory.map(cloneItem), bank: p.bank.map(cloneItem), equipment: p.equipment, skills: p.skills } };
+  const data = { version: 7, bossDead: world.bossDead, player: { name: p.name, x: p.x, hp: p.hp, maxHp: p.maxHp, appearance: p.appearance, inventory: p.inventory.map(cloneItem), bank: p.bank.map(cloneItem), equipment: p.equipment, skills: p.skills } };
   localStorage.setItem(SAVE_KEY, JSON.stringify(data)); log('Game saved locally in your browser.', 'good'); continueBtn.disabled = false;
 }
 function loadGame() {
@@ -576,61 +711,105 @@ function updateWorld(dt) {
     }
   }
   updateCombat(dt);
+  updateTask(dt);
   updatePendingAction();
 }
 
-function drawBackground(cameraX) {
-  const zone = getZoneAt(world.player.x);
-  ctx.fillStyle = zone.sky; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-  ctx.fillStyle = 'rgba(255,255,255,0.24)';
-  for (let i = 0; i < 5; i++) {
-    const cx = ((i * 280 - cameraX * 0.1) % (VIEW_W + 220)) - 110;
-    ctx.fillRect(cx, 92 + (i % 2) * 16, 76, 16); ctx.fillRect(cx + 12, 82 + (i % 2) * 16, 52, 14);
+function drawIsoSprite(key, sx, baseY, width, height, flip = false) {
+  const img = sprites[key];
+  if (img && img.complete && img.naturalWidth) {
+    ctx.save();
+    if (flip) { ctx.translate(sx, 0); ctx.scale(-1, 1); sx = 0; }
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, sx - width / 2, baseY - height, width, height);
+    ctx.restore();
+    return true;
   }
+  return false;
+}
+function drawDiamond(x, y, w, h, fill, stroke) {
+  ctx.beginPath();
+  ctx.moveTo(x, y - h / 2);
+  ctx.lineTo(x + w / 2, y);
+  ctx.lineTo(x, y + h / 2);
+  ctx.lineTo(x - w / 2, y);
+  ctx.closePath();
+  ctx.fillStyle = fill;
+  ctx.fill();
+  if (stroke) { ctx.strokeStyle = stroke; ctx.stroke(); }
+}
+function drawBackground(cameraX) {
+  const zone = getZoneAt(world.player?.x || 0);
+  ctx.fillStyle = zone.sky; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
   ctx.fillStyle = zone.hill;
-  for (let i = 0; i < 11; i++) { const x = ((i * 220 - cameraX * 0.2) % (VIEW_W + 280)) - 140; ctx.beginPath(); ctx.moveTo(x, 420); ctx.lineTo(x + 100, 300); ctx.lineTo(x + 220, 420); ctx.closePath(); ctx.fill(); }
-  ctx.fillStyle = zone.ground; ctx.fillRect(0, GROUND_Y, VIEW_W, VIEW_H - GROUND_Y);
-  for (let x = -(cameraX % TILE); x < VIEW_W; x += TILE) {
-    ctx.fillStyle = (Math.floor((x + cameraX) / TILE) % 2 === 0) ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.03)';
-    ctx.fillRect(x, GROUND_Y, TILE, VIEW_H - GROUND_Y);
-    ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.strokeRect(x, GROUND_Y, TILE, TILE);
+  for (let i = -1; i < 8; i++) {
+    const x = i * 190 - (cameraX * 0.3 % 190);
+    ctx.beginPath(); ctx.moveTo(x, GROUND_Y); ctx.lineTo(x + 95, 250 + (i % 2) * 60); ctx.lineTo(x + 190, GROUND_Y); ctx.closePath(); ctx.fill();
+  }
+  ctx.fillStyle = zone.ground;
+  ctx.fillRect(0, GROUND_Y, VIEW_W, VIEW_H - GROUND_Y);
+  const startTile = Math.floor(cameraX / TILE) - 2;
+  for (let i = 0; i < Math.ceil(VIEW_W / TILE) + 4; i++) {
+    const tile = startTile + i;
+    const wx = tile * TILE;
+    const sx = Math.round(wx - cameraX + TILE / 2);
+    const alt = tile % 2 === 0;
+    drawDiamond(sx, GROUND_Y + 18, TILE + 8, 22, alt ? 'rgba(173,192,122,0.28)' : 'rgba(115,138,79,0.32)', 'rgba(60,77,40,0.18)');
   }
 }
-function drawHouse(sx) { ctx.fillStyle = '#b1976a'; ctx.fillRect(sx - 42, GROUND_Y - 68, 84, 68); ctx.fillStyle = '#7a3f31'; ctx.beginPath(); ctx.moveTo(sx - 52, GROUND_Y - 68); ctx.lineTo(sx, GROUND_Y - 108); ctx.lineTo(sx + 52, GROUND_Y - 68); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#573a22'; ctx.fillRect(sx - 10, GROUND_Y - 26, 20, 26); }
-function drawNpc(sx, baseY, shirt, accent) { ctx.fillStyle = '#00000022'; ctx.fillRect(sx - 18, baseY + 3, 36, 5); ctx.fillStyle = '#caa180'; ctx.fillRect(sx - 12, baseY - 64, 24, 22); ctx.fillStyle = accent; ctx.fillRect(sx - 12, baseY - 70, 24, 8); ctx.fillStyle = shirt; ctx.fillRect(sx - 14, baseY - 42, 28, 22); ctx.fillStyle = '#4a4f5e'; ctx.fillRect(sx - 12, baseY - 20, 10, 20); ctx.fillRect(sx + 2, baseY - 20, 10, 20); ctx.fillStyle = '#222'; ctx.fillRect(sx - 12, baseY, 10, 4); ctx.fillRect(sx + 2, baseY, 10, 4); }
+function drawHouse(sx) {
+  if (drawIsoSprite('house', sx, GROUND_Y - 6, 132, 132)) return;
+  ctx.fillStyle = '#b1976a'; ctx.fillRect(sx - 42, GROUND_Y - 68, 84, 68); ctx.fillStyle = '#7a3f31'; ctx.beginPath(); ctx.moveTo(sx - 52, GROUND_Y - 68); ctx.lineTo(sx, GROUND_Y - 108); ctx.lineTo(sx + 52, GROUND_Y - 68); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#573a22'; ctx.fillRect(sx - 10, GROUND_Y - 26, 20, 26);
+}
+function drawNpc(sx, baseY, shirt, accent, key = '') {
+  if (key && drawIsoSprite(key, sx, baseY + 2, 92, 92)) return;
+  ctx.fillStyle = '#00000022'; ctx.fillRect(sx - 18, baseY + 3, 36, 5); ctx.fillStyle = '#caa180'; ctx.fillRect(sx - 12, baseY - 64, 24, 22); ctx.fillStyle = accent; ctx.fillRect(sx - 12, baseY - 70, 24, 8); ctx.fillStyle = shirt; ctx.fillRect(sx - 14, baseY - 42, 28, 22); ctx.fillStyle = '#4a4f5e'; ctx.fillRect(sx - 12, baseY - 20, 10, 20); ctx.fillRect(sx + 2, baseY - 20, 10, 20); ctx.fillStyle = '#222'; ctx.fillRect(sx - 12, baseY, 10, 4); ctx.fillRect(sx + 2, baseY, 10, 4);
+}
 function drawCharacter(entity, sx, baseY, appearance, facing = 1) {
-  const flash = entity.hitFlash > 0; const swingMax = entity.attackSwing > 0 ? 0.32 : 0.42; const swing = entity.attackSwing > 0 ? Math.sin((1 - entity.attackSwing / swingMax) * Math.PI) * 14 : 0; const walk = Math.sin(entity.anim || 0) * 4;
-  ctx.save(); if (flash) ctx.globalAlpha = 0.58; if (entity.immunity > 0) ctx.globalAlpha *= 0.82; ctx.translate(sx, 0); ctx.scale(facing, 1);
-  ctx.fillStyle = '#00000022'; ctx.fillRect(-18, baseY + 3, 36, 5);
-  if (entity.equipment?.shield) { ctx.fillStyle = '#6b4f2e'; ctx.fillRect(-24, baseY - 44, 12, 28); ctx.fillStyle = '#9faab5'; ctx.fillRect(-22, baseY - 40, 8, 20); }
-  if (entity.equipment?.weapon) { ctx.fillStyle = '#9faab5'; ctx.fillRect(17 + swing, baseY - 50 - swing * 0.2, 6, 36); ctx.fillStyle = '#6b4f2e'; ctx.fillRect(18 + swing, baseY - 14 - swing * 0.2, 4, 12); }
-  ctx.fillStyle = appearance.skinTone; ctx.fillRect(-12, baseY - 66, 24, 22);
-  if (appearance.hairStyle !== 'bald') { ctx.fillStyle = appearance.hairColor; if (appearance.hairStyle === 'short') ctx.fillRect(-12, baseY - 72, 24, 8); if (appearance.hairStyle === 'crest') ctx.fillRect(-8, baseY - 78, 16, 14); if (appearance.hairStyle === 'long') { ctx.fillRect(-14, baseY - 72, 28, 8); ctx.fillRect(-13, baseY - 64, 6, 18); ctx.fillRect(7, baseY - 64, 6, 18); } }
+  ctx.save(); ctx.translate(sx, 0); if (facing < 0) ctx.scale(-1, 1);
+  const walk = Math.sin(entity.anim || 0) * 4; const swing = entity.attackSwing > 0 ? 10 : 0;
+  ctx.fillStyle = entity.hitFlash > 0 ? '#fff2f2' : '#00000022'; drawDiamond(0, baseY + 4, 34, 8, ctx.fillStyle, null);
+  ctx.fillStyle = appearance.skinTone; ctx.fillRect(-9, baseY - 66, 18, 18); ctx.fillRect(12, baseY - 42, 4, 14);
+  if (appearance.hairStyle !== 'bald') { ctx.fillStyle = appearance.hairColor; if (appearance.hairStyle === 'short') ctx.fillRect(-9, baseY - 72, 18, 8); else if (appearance.hairStyle === 'crest') { ctx.fillRect(-3, baseY - 78, 6, 12); ctx.fillRect(-9, baseY - 72, 18, 6); } else ctx.fillRect(-11, baseY - 72, 22, 10); }
   ctx.fillStyle = entity.equipment?.armor ? '#7c8b9c' : appearance.shirtColor; ctx.fillRect(-14, baseY - 44, 28, 24);
   ctx.fillStyle = appearance.pantsColor; ctx.fillRect(-12, baseY - 20, 10, 20 + walk); ctx.fillRect(2, baseY - 20, 10, 20 - walk);
-  ctx.fillStyle = '#252525'; ctx.fillRect(-13, baseY, 12, 5); ctx.fillRect(1, baseY, 12, 5); ctx.restore();
+  ctx.fillStyle = '#252525'; ctx.fillRect(-13, baseY, 12, 5); ctx.fillRect(1, baseY, 12, 5);
+  if (entity.equipment?.weapon) { ctx.fillStyle = '#b69866'; ctx.fillRect(12, baseY - 38, 3, 26); ctx.fillStyle = '#aeb4bb'; ctx.fillRect(12, baseY - 57 - swing, 3, 20); }
+  if (entity.equipment?.shield) { ctx.fillStyle = '#7f6850'; ctx.fillRect(-19, baseY - 36, 8, 15); }
+  ctx.restore();
 }
 function drawObject(obj, cameraX) {
   if (obj.maxHp && obj.hp === 0) return;
   const sx = Math.round(obj.x - cameraX), baseY = obj.y; if (sx < -160 || sx > VIEW_W + 160) return;
-  if (obj.type === 'tree') { ctx.fillStyle = '#6a4922'; ctx.fillRect(sx - 10, baseY - 70, 20, 70); ctx.fillStyle = '#29522b'; ctx.fillRect(sx - 28, baseY - 118, 56, 22); ctx.fillRect(sx - 38, baseY - 96, 76, 18); ctx.fillRect(sx - 22, baseY - 82, 44, 14); }
-  else if (obj.type === 'fish') { ctx.fillStyle = '#4c8fbe'; ctx.fillRect(sx - 64, baseY - 12, 128, 12); ctx.fillStyle = '#b9e4ff'; ctx.fillRect(sx - 14, baseY - 19, 28, 7); }
-  else if (obj.type === 'rockCopper' || obj.type === 'rockTin' || obj.type === 'rockIron') { ctx.fillStyle = obj.type === 'rockIron' ? '#8c97a2' : obj.type === 'rockTin' ? '#b9c1d0' : '#b37d57'; ctx.fillRect(sx - 30, baseY - 42, 20, 42); ctx.fillRect(sx - 10, baseY - 54, 24, 54); ctx.fillRect(sx + 14, baseY - 28, 18, 28); }
-  else if (obj.type === 'forge') { ctx.fillStyle = '#655240'; ctx.fillRect(sx - 32, baseY - 54, 64, 54); ctx.fillStyle = '#23150d'; ctx.fillRect(sx - 16, baseY - 32, 32, 22); ctx.fillStyle = '#f9bb5d'; ctx.fillRect(sx - 10, baseY - 25, 20, 10); }
-  else if (obj.type === 'anvil') { ctx.fillStyle = '#8a949e'; ctx.fillRect(sx - 24, baseY - 20, 48, 14); ctx.fillRect(sx - 10, baseY - 6, 20, 6); }
-  else if (obj.type === 'merchant' || obj.type === 'healer' || obj.type === 'banker') { const map = { merchant: ['#dfcf78', '#8d6830'], healer: ['#95d284', '#2b7a4a'], banker: ['#a8bdd5', '#4f5f7b'] }; drawNpc(sx, baseY, map[obj.type][0], map[obj.type][1]); }
-  else if (obj.type === 'bossGate') { ctx.fillStyle = '#7a556d'; ctx.fillRect(sx - 46, baseY - 96, 92, 96); ctx.fillStyle = '#c195d4'; ctx.fillRect(sx - 22, baseY - 70, 44, 56); }
+  drawDiamond(sx, baseY + 4, Math.max(26, (obj.width || 52) * 0.75), 10, 'rgba(0,0,0,0.16)', null);
+  if (obj.type === 'tree') { if (drawIsoSprite('tree', sx, baseY + 2, 112, 112)) return; ctx.fillStyle = '#6a4922'; ctx.fillRect(sx - 10, baseY - 70, 20, 70); ctx.fillStyle = '#29522b'; ctx.fillRect(sx - 28, baseY - 118, 56, 22); ctx.fillRect(sx - 38, baseY - 96, 76, 18); ctx.fillRect(sx - 22, baseY - 82, 44, 14); }
+  else if (obj.type === 'fish') { if (drawIsoSprite('fish', sx, baseY + 4, 120, 72)) return; ctx.fillStyle = '#4c8fbe'; ctx.fillRect(sx - 64, baseY - 12, 128, 12); ctx.fillStyle = '#b9e4ff'; ctx.fillRect(sx - 14, baseY - 19, 28, 7); }
+  else if (obj.type === 'rockCopper' || obj.type === 'rockTin' || obj.type === 'rockIron') { const key = obj.type; if (drawIsoSprite(key, sx, baseY + 2, 96, 96)) return; ctx.fillStyle = obj.type === 'rockIron' ? '#8c97a2' : obj.type === 'rockTin' ? '#b9c1d0' : '#b37d57'; ctx.fillRect(sx - 30, baseY - 42, 20, 42); ctx.fillRect(sx - 10, baseY - 54, 24, 54); ctx.fillRect(sx + 14, baseY - 28, 18, 28); }
+  else if (obj.type === 'forge') { if (drawIsoSprite('forge', sx, baseY + 2, 104, 104)) return; ctx.fillStyle = '#655240'; ctx.fillRect(sx - 32, baseY - 54, 64, 54); ctx.fillStyle = '#23150d'; ctx.fillRect(sx - 16, baseY - 32, 32, 22); ctx.fillStyle = '#f9bb5d'; ctx.fillRect(sx - 10, baseY - 25, 20, 10); }
+  else if (obj.type === 'anvil') { if (drawIsoSprite('anvil', sx, baseY + 2, 92, 92)) return; ctx.fillStyle = '#8a949e'; ctx.fillRect(sx - 24, baseY - 20, 48, 14); ctx.fillRect(sx - 10, baseY - 6, 20, 6); }
+  else if (obj.type === 'merchant' || obj.type === 'healer' || obj.type === 'banker') { const map = { merchant: ['#dfcf78', '#8d6830', 'merchant'], healer: ['#95d284', '#2b7a4a', 'healer'], banker: ['#a8bdd5', '#4f5f7b', 'banker'] }; drawNpc(sx, baseY, map[obj.type][0], map[obj.type][1], map[obj.type][2]); }
+  else if (obj.type === 'bossGate') { if (drawIsoSprite('bossGate', sx, baseY + 2, 124, 124)) return; ctx.fillStyle = '#7a556d'; ctx.fillRect(sx - 46, baseY - 96, 92, 96); ctx.fillStyle = '#c195d4'; ctx.fillRect(sx - 22, baseY - 70, 44, 56); }
 }
 function drawEnemy(enemy, cameraX) {
   if (!enemy.alive) return;
   const sx = Math.round(enemy.x - cameraX); if (sx < -80 || sx > VIEW_W + 80) return;
-  const appearance = enemy.name === 'Wolf' ? { skinTone: '#9797a4', hairColor: '#6f6f7a', hairStyle: 'long', shirtColor: '#7f8a91', pantsColor: '#5a6068' } : enemy.name === 'Bandit' ? { skinTone: '#c08d68', hairColor: '#593522', hairStyle: 'short', shirtColor: '#8f4b37', pantsColor: '#4e3327' } : enemy.name === 'Skeleton' ? { skinTone: '#e5e8ee', hairColor: '#e5e8ee', hairStyle: 'bald', shirtColor: '#6d7582', pantsColor: '#6d7582' } : { skinTone: '#b58ca5', hairColor: '#efe8ff', hairStyle: 'crest', shirtColor: '#7e536f', pantsColor: '#4c3946' };
-  drawCharacter(enemy, sx, enemy.y, appearance, enemy.facing);
-  ctx.fillStyle = '#000'; ctx.fillRect(sx - 26, enemy.y - 86, 52, 6); ctx.fillStyle = '#da4b4b'; ctx.fillRect(sx - 26, enemy.y - 86, 52 * (enemy.hp / enemy.maxHp), 6);
-  if (enemy.immunity > 0) { ctx.fillStyle = '#efefc9'; ctx.font = '11px Verdana'; ctx.fillText(`Immune ${enemy.immunity.toFixed(1)}s`, sx - 28, enemy.y - 96); }
-  ctx.fillStyle = '#20170a'; ctx.font = '12px Verdana'; ctx.fillText(enemy.name, sx - 30, enemy.y - 104);
+  drawDiamond(sx, enemy.y + 4, 34, 10, 'rgba(0,0,0,0.18)', null);
+  const key = enemy.name;
+  const usedSprite = drawIsoSprite(key, sx, enemy.y + 2, enemy.name === 'Wolf' ? 96 : 92, enemy.name === 'Wolf' ? 72 : 92, enemy.facing > 0);
+  if (!usedSprite) {
+    const appearance = enemy.name === 'Wolf' ? { skinTone: '#9797a4', hairColor: '#6f6f7a', hairStyle: 'long', shirtColor: '#7f8a91', pantsColor: '#5a6068' } : enemy.name === 'Bandit' ? { skinTone: '#c08d68', hairColor: '#593522', hairStyle: 'short', shirtColor: '#8f4b37', pantsColor: '#4e3327' } : enemy.name === 'Skeleton' ? { skinTone: '#e5e8ee', hairColor: '#e5e8ee', hairStyle: 'bald', shirtColor: '#6d7582', pantsColor: '#6d7582' } : { skinTone: '#b58ca5', hairColor: '#efe8ff', hairStyle: 'crest', shirtColor: '#7e536f', pantsColor: '#4c3946' };
+    drawCharacter(enemy, sx, enemy.y, appearance, enemy.facing);
+  }
+  ctx.fillStyle = '#000'; ctx.fillRect(sx - 26, enemy.y - 98, 52, 6); ctx.fillStyle = '#da4b4b'; ctx.fillRect(sx - 26, enemy.y - 98, 52 * (enemy.hp / enemy.maxHp), 6);
+  if (enemy.immunity > 0) { ctx.fillStyle = '#efefc9'; ctx.font = '11px Verdana'; ctx.fillText(`Immune ${enemy.immunity.toFixed(1)}s`, sx - 28, enemy.y - 108); }
+  ctx.fillStyle = '#20170a'; ctx.font = '12px Verdana'; ctx.fillText(enemy.name, sx - 30, enemy.y - 116);
 }
-function drawDrop(drop, cameraX) { const sx = Math.round(drop.x - cameraX); if (sx < -40 || sx > VIEW_W + 40) return; ctx.fillStyle = '#d8b858'; ctx.fillRect(sx - 10, GROUND_Y - 14, 20, 14); }
+function drawDrop(drop, cameraX) {
+  const sx = Math.round(drop.x - cameraX); if (sx < -40 || sx > VIEW_W + 40) return;
+  drawDiamond(sx, GROUND_Y + 2, 24, 8, 'rgba(0,0,0,0.18)', null);
+  ctx.fillStyle = '#d8b858'; ctx.fillRect(sx - 10, GROUND_Y - 14, 20, 14);
+}
+
 
 function renderWorld() {
   const p = world.player; const cameraX = clamp(p.x - VIEW_W / 2, 0, WORLD_W - VIEW_W); world.cameraX = cameraX;
@@ -649,7 +828,7 @@ function renderWorld() {
   ctx.fillStyle = '#f3ecd3'; ctx.font = '14px Verdana';
   ctx.fillText(`Zone: ${zone.name} | ${p.name} | HP ${p.hp}/${p.maxHp} | Atk ${totalAttack(p)} | Def ${totalDefense(p)} | Coins ${countItem(p.inventory, 'coin')}`, 14, VIEW_H - 42);
   ctx.fillText(world.bossDead ? 'Victory complete. Keep testing, crafting, or hoarding fish like a medieval prepper.' : 'Point-click path: Village -> Timber -> Fish -> Ore -> Ruins -> Warden', 14, VIEW_H - 18);
-  const hint = world.mouseHint || (p.combat ? 'Combat active. Use H to eat during immunity.' : 'Click ground to move. Click objects or enemies to interact.');
+  const hint = world.task ? `${world.task.label}... ${world.task.duration ? Math.max(0, world.task.timer).toFixed(1) : `${world.task.remaining} left`}` : (world.mouseHint || (p.combat ? 'Combat active. Use H to eat during immunity.' : 'Click ground to move. Click objects or enemies to interact.'));
   ctx.fillStyle = 'rgba(46,36,19,0.75)'; ctx.fillRect(12, 12, 510, 32); ctx.strokeStyle = '#bda56e'; ctx.strokeRect(12, 12, 510, 32); ctx.fillStyle = '#eee1b8'; ctx.font = '13px Verdana'; ctx.fillText(hint, 22, 33);
   if (p.moveTargetX !== null) { const mx = Math.round(p.moveTargetX - cameraX); ctx.strokeStyle = '#fff0ae'; ctx.strokeRect(mx - 8, GROUND_Y - 8, 16, 16); }
 }
@@ -683,12 +862,12 @@ function updateInput(dt) {
   const kMove = keyboardMoveIntent();
   if (kMove !== 0) { p.moveTargetX = null; world.pendingAction = null; }
   let move = kMove;
-  if (move === 0 && p.moveTargetX !== null && !p.combat) {
+  if (move === 0 && p.moveTargetX !== null && !p.combat && !taskLocked()) {
     const diff = p.moveTargetX - p.x;
     if (Math.abs(diff) <= 4) p.moveTargetX = null;
     else move = Math.sign(diff);
   }
-  if (move !== 0 && !p.combat) { p.x += move * PLAYER_SPEED * dt; p.x = clamp(p.x, 30, WORLD_W - 30); p.facing = move >= 0 ? 1 : -1; }
+  if (move !== 0 && !p.combat && !taskLocked()) { p.x += move * PLAYER_SPEED * dt; p.x = clamp(p.x, 30, WORLD_W - 30); p.facing = move >= 0 ? 1 : -1; }
   p.vy += GRAVITY * dt; p.y += p.vy * dt; if (p.y >= GROUND_Y) { p.y = GROUND_Y; p.vy = 0; p.onGround = true; }
 }
 
@@ -719,6 +898,7 @@ function handleCanvasMove(ev) {
   if (target.kind === 'ground') world.mouseHint = `Click to walk to tile ${target.x / TILE}.`;
   else if (target.kind === 'enemy') world.mouseHint = `Click to attack ${target.ref.name}.`;
   else if (target.kind === 'drop') world.mouseHint = 'Click to loot drop.';
+  else if (target.ref.type === 'fish') world.mouseHint = 'Click to fish (3-5s wait).';
   else world.mouseHint = `Click to use ${friendlyName(target.ref.type)}.`;
 }
 function handleCanvasClick(ev) {
@@ -743,6 +923,7 @@ function startNewGame() {
   log(`Welcome to Manala, ${world.player.name}.`, 'good');
   log('Click the ground to move, click NPCs/resources/enemies to interact, or press E when standing nearby.', '');
   log('Combat lock bug patched: while fighting, resource/NPC interactions are blocked until combat or immunity logic resolves.', 'good');
+  log('v7 changes: timed fishing, Cook All / Smelt All, hybrid pseudo-isometric art pass, and first external sprite pass.', 'good');
 }
 
 for (const el of [nameInput, skinToneSelect, hairStyleSelect, hairColorSelect, shirtColorSelect, pantsColorSelect]) { el.addEventListener('input', drawCreatorPreview); el.addEventListener('change', drawCreatorPreview); }

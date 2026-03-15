@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Manala v6 Prototype</title>
+  <title>Manala v7 Prototype</title>
   <link rel="stylesheet" href="src/styles.css" />
 </head>
 <body>
   <div id="characterCreator" class="overlay">
     <div class="creatorCard classicCard">
       <h1>Manala</h1>
-      <p class="subtitle">v6 local prototype — recreated package</p>
+      <p class="subtitle">v7 local prototype — timed fishing + pseudo-isometric pass</p>
       <div class="creatorGrid">
         <label>Character Name<input id="nameInput" type="text" maxlength="18" value="Wanderer" /></label>
         <label>Skin Tone<select id="skinToneSelect"><option value="#f0c7a4">Light</option><option value="#d49a73">Tan</option><option value="#8d5f43">Brown</option><option value="#5b3b2a">Dark</option></select></label>
@@ -25,6 +25,7 @@
           <h2>How to play</h2>
           <ul>
             <li><b>Point & click:</b> left-click ground to move, left-click trees/NPCs/enemies/stations to walk over and interact.</li>
+            <li><b>Fishing:</b> takes 3–5 seconds and can reward fish, nothing, or junk.</li>
             <li><b>Keyboard movement:</b> A / D or Left / Right still works.</li>
             <li><b>Jump:</b> W, Up, or Space.</li>
             <li><b>Interact manually:</b> E near an object, enemy, drop, or station.</li>
@@ -47,7 +48,7 @@
     <div id="ui">
       <div class="panel classicCard">
         <h1>Manala</h1>
-        <p class="subtitle">Local RSC-style prototype</p>
+        <p class="subtitle">Local RSC-style prototype — v7</p>
         <div id="messageLog" class="log"></div>
       </div>
 
@@ -60,6 +61,7 @@
           <ul>
             <li>Left-click ground to move to a tile.</li>
             <li>Left-click an NPC, bank, forge, tree, ore rock, fish spot, or enemy to path to it and interact.</li>
+            <li>Forge now supports <b>Cook All</b> and <b>Smelt All</b> batch actions at 1 item per second.</li>
             <li><b>Combat:</b> both sides trade a simultaneous <b>3-hit cycle</b>, then both are immune for <b>5 seconds</b>.</li>
             <li>While in combat, non-combat interactions are locked so you cannot chop a tree during a wolf slap-fest like a possessed forklift.</li>
             <li>The bank now shows a proper <b>vault grid</b> with item icons and withdraw buttons.</li>
