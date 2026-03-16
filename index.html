@@ -3,89 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Manala v7 Prototype</title>
+  <title>Manala v10 - Faux RSC 3/4 Renderer</title>
   <link rel="stylesheet" href="src/styles.css" />
 </head>
 <body>
-  <div id="characterCreator" class="overlay">
-    <div class="creatorCard classicCard">
-      <h1>Manala</h1>
-      <p class="subtitle">v7 local prototype — timed fishing + pseudo-isometric pass</p>
-      <div class="creatorGrid">
-        <label>Character Name<input id="nameInput" type="text" maxlength="18" value="Wanderer" /></label>
-        <label>Skin Tone<select id="skinToneSelect"><option value="#f0c7a4">Light</option><option value="#d49a73">Tan</option><option value="#8d5f43">Brown</option><option value="#5b3b2a">Dark</option></select></label>
-        <label>Hair Style<select id="hairStyleSelect"><option value="short">Short</option><option value="crest">Crest</option><option value="long">Long</option><option value="bald">Bald</option></select></label>
-        <label>Hair Color<select id="hairColorSelect"><option value="#2b1c13">Black</option><option value="#704728">Brown</option><option value="#d4b56b">Blonde</option><option value="#c74444">Red</option><option value="#d9d9e2">White</option></select></label>
-        <label>Tunic Color<select id="shirtColorSelect"><option value="#4165a6">Blue</option><option value="#8d4e42">Red</option><option value="#4b7450">Green</option><option value="#7861a6">Purple</option><option value="#b2954b">Gold</option></select></label>
-        <label>Trouser Color<select id="pantsColorSelect"><option value="#454b55">Dark Grey</option><option value="#5d432f">Brown</option><option value="#314c7a">Blue Grey</option><option value="#203225">Forest</option></select></label>
-      </div>
-      <div class="previewWrap">
-        <canvas id="creatorPreview" width="220" height="220"></canvas>
-        <div class="instructionsBlock classicInset">
-          <h2>How to play</h2>
-          <ul>
-            <li><b>Point & click:</b> left-click ground to move, left-click trees/NPCs/enemies/stations to walk over and interact.</li>
-            <li><b>Fishing:</b> takes 3–5 seconds and can reward fish, nothing, or junk.</li>
-            <li><b>Keyboard movement:</b> A / D or Left / Right still works.</li>
-            <li><b>Jump:</b> W, Up, or Space.</li>
-            <li><b>Interact manually:</b> E near an object, enemy, drop, or station.</li>
-            <li><b>Eat food:</b> H.</li>
-            <li><b>Equip inventory slots:</b> 1–9.</li>
-            <li><b>Save / Load:</b> buttons in the right panel.</li>
-          </ul>
-          <p>All skills start at level 1. Combat uses a simultaneous 3-hit exchange, then a 5 second immunity window so you can heal or run before re-engaging.</p>
-        </div>
-      </div>
-      <div class="buttonRow">
-        <button id="startBtn" class="bigButton">New Character</button>
-        <button id="continueBtn" class="bigButton alt">Continue Save</button>
-      </div>
-    </div>
-  </div>
-
   <div id="app">
-    <canvas id="game" width="1120" height="640"></canvas>
-    <div id="ui">
-      <div class="panel classicCard">
-        <h1>Manala</h1>
-        <p class="subtitle">Local RSC-style prototype — v7</p>
-        <div id="messageLog" class="log"></div>
-      </div>
-
-      <div class="grid">
-        <div class="panel classicCard" id="statsPanel"></div>
-        <div class="panel classicCard" id="inventoryPanel"></div>
-        <div class="panel classicCard" id="skillsPanel"></div>
-        <div class="panel classicCard" id="helpPanel">
-          <h2>Instructions</h2>
-          <ul>
-            <li>Left-click ground to move to a tile.</li>
-            <li>Left-click an NPC, bank, forge, tree, ore rock, fish spot, or enemy to path to it and interact.</li>
-            <li>Forge now supports <b>Cook All</b> and <b>Smelt All</b> batch actions at 1 item per second.</li>
-            <li><b>Combat:</b> both sides trade a simultaneous <b>3-hit cycle</b>, then both are immune for <b>5 seconds</b>.</li>
-            <li>While in combat, non-combat interactions are locked so you cannot chop a tree during a wolf slap-fest like a possessed forklift.</li>
-            <li>The bank now shows a proper <b>vault grid</b> with item icons and withdraw buttons.</li>
-            <li>Death drops inventory, keeps banked items safe, and respawns you in the first village.</li>
-          </ul>
-          <div class="buttonColumn">
-            <button id="saveBtn" class="smallButton">Save</button>
-            <button id="loadBtn" class="smallButton">Load</button>
-            <button id="deleteSaveBtn" class="smallButton danger">Delete Save</button>
-          </div>
-        </div>
-      </div>
+    <div id="topbar">
+      <div id="title">Manala v10</div>
+      <div id="hover">Move mouse over a target...</div>
     </div>
-  </div>
 
-  <div id="dialogue" class="overlay hidden">
-    <div class="dialogueCard classicCard">
-      <div class="dialogueHeader">
-        <h2 id="dialogueTitle">Interaction</h2>
-        <button id="dialogueClose" class="smallButton">Close</button>
-      </div>
-      <div id="dialogueText" class="dialogueText"></div>
-      <div id="dialogueChoices" class="dialogueChoices"></div>
+    <div id="instructions" class="panel">
+      <strong>Prototype Controls</strong><br>
+      • Click a tile to move the player.<br>
+      • Hover targets to see classic verbs like <em>Attack Wolf</em>, <em>Chop Tree</em>, <em>Bank Booth</em>.<br>
+      • This is a renderer/camera integration pass, built to help pivot the game toward RuneScape Classic style.<br>
+      • Sprites are first-pass placeholders included in this update zip.
     </div>
+
+    <canvas id="game" width="1200" height="700"></canvas>
   </div>
 
   <script src="src/game.js"></script>

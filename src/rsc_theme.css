@@ -1,0 +1,81 @@
+:root {
+  --rsc-bg: #bfc4b2;
+  --rsc-panel: #c9be9b;
+  --rsc-panel-dark: #b9aa81;
+  --rsc-line: #5f5138;
+  --rsc-ink: #231f16;
+  --rsc-olive: #687b4f;
+  --rsc-olive-dark: #4a5c38;
+  --rsc-red: #8b483c;
+  --rsc-bluegrey: #7b818c;
+}
+
+body {
+  background:
+    linear-gradient(to bottom, #b5c7bc 0%, #b5c7bc 68%, #8c9a78 68%, #7c8f5a 100%);
+  color: var(--rsc-ink);
+  image-rendering: pixelated;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+#gameShell, .panel, .dialogWindow {
+  border: 3px solid var(--rsc-line);
+  box-shadow: inset 0 0 0 2px #d8cda8, 0 0 0 1px #2d291c;
+  background: linear-gradient(to bottom, var(--rsc-panel) 0%, #c6bc99 100%);
+}
+
+.panelTitle, .dialogTitle {
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: #19160f;
+}
+
+button, .gameButton {
+  font-family: Georgia, "Times New Roman", serif;
+  background: linear-gradient(to bottom, #d6cbab 0%, #b8ab80 100%);
+  color: var(--rsc-ink);
+  border: 2px solid var(--rsc-line);
+  box-shadow: inset 0 0 0 1px #e6dbb7;
+  padding: 5px 10px;
+}
+button:hover, .gameButton:hover {
+  filter: brightness(1.06);
+}
+button:active, .gameButton:active {
+  transform: translateY(1px);
+}
+
+#viewportCanvas, canvas.gameCanvas {
+  image-rendering: pixelated;
+  background: linear-gradient(to bottom, #b8cbc0 0%, #b8cbc0 65%, #8e9c77 65%, #7b8f5a 100%);
+}
+
+.messageLog {
+  background: rgba(208, 197, 162, .9);
+  border: 2px solid var(--rsc-line);
+}
+.messageLog .warn { color: var(--rsc-red); font-weight: 700; }
+.messageLog .ok { color: #35553a; font-weight: 700; }
+
+.inventorySlot, .bankSlot, .equipSlot {
+  border: 2px solid var(--rsc-line);
+  background: linear-gradient(to bottom, #d2c7a6 0%, #c3b792 100%);
+  box-shadow: inset 0 0 0 1px #ece1bc;
+}
+
+.hoverVerb {
+  position: absolute;
+  padding: 2px 6px;
+  background: rgba(201,190,155,.95);
+  border: 2px solid var(--rsc-line);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.spritePreview {
+  width: 96px;
+  height: 96px;
+  image-rendering: pixelated;
+  background: linear-gradient(to bottom, #97b1c7 0 55%, #93a27a 55% 100%);
+  border: 2px solid var(--rsc-line);
+}
