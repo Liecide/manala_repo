@@ -1,58 +1,31 @@
-
-:root{
-  --panel-bg:#b7aa83;
-  --panel-edge:#58482d;
-  --panel-inner:#d4c8a4;
-  --text:#1d170d;
-  --verb:#f4e1a1;
-  --verb-shadow:#3c2f18;
-  --bg:#4e5a3a;
+:root {
+  --bg: #4d5537;
+  --panel: #b7ad87;
+  --panel-edge: #3a3528;
+  --panel-shadow: #867d60;
+  --text: #1d1b16;
+  --accent: #eee0a9;
 }
-*{box-sizing:border-box}
-body{
-  margin:0;
-  background:linear-gradient(#3f482f,#55643b 35%, #465334);
-  color:var(--text);
-  font-family:Verdana, Arial, sans-serif;
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: linear-gradient(90deg, #41462f, #596345 14%, #596345 86%, #41462f); color: var(--text); font-family: Georgia, 'Times New Roman', serif; }
+body { min-height: 100vh; }
+.page { width: min(1220px, calc(100vw - 28px)); margin: 10px auto 18px; }
+.panel {
+  background: var(--panel);
+  border: 4px solid var(--panel-edge);
+  box-shadow: inset 0 0 0 2px #d8cfad;
 }
-#app{
-  width:1200px;
-  margin:10px auto;
+.topbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; margin-bottom: 10px;
 }
-#topbar{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:8px 12px;
-  background:var(--panel-bg);
-  border:3px solid var(--panel-edge);
-  box-shadow: inset 0 0 0 2px var(--panel-inner);
-  margin-bottom:8px;
-}
-#title{
-  font-weight:bold;
-  font-size:20px;
-}
-#hover{
-  min-height:24px;
-  color:var(--verb);
-  text-shadow:1px 1px 0 var(--verb-shadow);
-  font-weight:bold;
-}
-.panel{
-  background:var(--panel-bg);
-  border:3px solid var(--panel-edge);
-  box-shadow: inset 0 0 0 2px var(--panel-inner);
-  padding:10px 12px;
-  margin-bottom:8px;
-  line-height:1.45;
-}
-canvas#game{
-  display:block;
-  width:1200px;
-  height:700px;
-  border:4px solid #2e271a;
-  background:#6f8251;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
+.title { font-size: 28px; font-weight: 700; }
+.hover-verb { font-size: 18px; color: #fff1af; text-shadow: 1px 1px 0 #654; font-weight: 700; }
+.help { padding: 10px 14px; margin-bottom: 10px; }
+.help h2 { margin: 0 0 6px; font-size: 18px; }
+.help ul { margin: 0; padding-left: 22px; line-height: 1.3; font-size: 16px; }
+.viewport-wrap { position: relative; height: auto; padding: 0; overflow: hidden; }
+#game { display: block; width: 100%; height: auto; background: #7b8760; image-rendering: pixelated; cursor: crosshair; }
+.corner-note {
+  position: absolute; left: 16px; bottom: 16px; background: rgba(58,53,40,.78); color: #f2e7bb; padding: 10px 12px; font-size: 16px; line-height: 1.25;
 }

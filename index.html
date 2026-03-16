@@ -1,27 +1,38 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Manala v10 - Faux RSC 3/4 Renderer</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Manala v11</title>
   <link rel="stylesheet" href="src/styles.css" />
 </head>
 <body>
-  <div id="app">
-    <div id="topbar">
-      <div id="title">Manala v10</div>
-      <div id="hover">Move mouse over a target...</div>
-    </div>
+  <div class="page">
+    <header class="panel topbar">
+      <div class="title">Manala v11</div>
+      <div id="hoverVerb" class="hover-verb">Walk here</div>
+    </header>
 
-    <div id="instructions" class="panel">
-      <strong>Prototype Controls</strong><br>
-      • Click a tile to move the player.<br>
-      • Hover targets to see classic verbs like <em>Attack Wolf</em>, <em>Chop Tree</em>, <em>Bank Booth</em>.<br>
-      • This is a renderer/camera integration pass, built to help pivot the game toward RuneScape Classic style.<br>
-      • Sprites are first-pass placeholders included in this update zip.
-    </div>
+    <section class="panel help">
+      <h2>Prototype Controls</h2>
+      <ul>
+        <li>Left-click a tile to walk there. Movement is stepped now, not teleport.</li>
+        <li>Drag with <strong>right mouse button</strong> to pan the camera.</li>
+        <li>Mouse wheel to zoom in/out. Arrow keys also pan the camera.</li>
+        <li>Hover targets to see classic verbs like <em>Attack Wolf</em>, <em>Chop Tree</em>, <em>Bank Booth</em>.</li>
+      </ul>
+    </section>
 
-    <canvas id="game" width="1200" height="700"></canvas>
+    <section class="panel viewport-wrap">
+      <canvas id="game" width="1400" height="860"></canvas>
+      <div class="corner-note">
+        v11 renderer focus:<br>
+        - Zoomed faux 3/4 camera<br>
+        - Camera pan + wheel zoom<br>
+        - Stepped click-to-move<br>
+        - Better spacing of world objects
+      </div>
+    </section>
   </div>
 
   <script src="src/game.js"></script>
