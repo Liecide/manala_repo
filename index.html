@@ -1,43 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Manala v15</title>
-  <link rel="stylesheet" href="src/styles.css" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Manala v16</title>
+<style>
+body{margin:0;background:#798056;font-family:Georgia,serif;color:#1e1a12}
+#topbar{background:#c8bf96;border-bottom:4px solid #5a593f;padding:10px 14px;box-shadow:inset 0 1px 0 #e3d9b5;display:flex;justify-content:space-between;align-items:center}
+#topbar .title{font-size:24px;font-weight:bold}
+#topbar .sub{font-size:13px;opacity:.85}
+#wrap{display:flex;justify-content:center;padding:14px}
+canvas{background:#8c9168;display:block;border:4px solid #4f503a}
+#note{position:fixed;left:16px;bottom:16px;background:rgba(50,48,34,.88);color:#f0e8c2;padding:10px 14px;border:2px solid #9e986d;font-size:15px;max-width:420px}
+</style>
 </head>
 <body>
-  <div class="page">
-    <header class="topbar panel">
-      <div>
-        <h1>Manala v15</h1>
-        <div class="subtitle">RSC-style visual overhaul / faux 3⁄4 renderer upgrade</div>
-      </div>
-      <div id="hoverVerb" class="hover-verb">Walk here</div>
-    </header>
-
-    <section class="panel notes">
-      <h2>v15 focus</h2>
-      <ul>
-        <li>Deeper RuneScape Classic-inspired sprite pass with layered-looking characters.</li>
-        <li>Hybrid pseudo-isometric renderer with depth sorting, zoom, panning, and stepped movement.</li>
-        <li>No major gameplay rewrite in this art pass — meant to be the new visual baseline.</li>
-        <li>Controls: left-click move/interact, right-drag pan, mouse wheel zoom, arrow keys pan.</li>
-      </ul>
-    </section>
-
-    <main class="workspace panel">
-      <canvas id="game" width="1400" height="900"></canvas>
-      <div class="overlay-block panel small" id="legend">
-        <strong>Preview notes</strong><br />
-        - richer sprite shapes<br />
-        - softer RSC palette<br />
-        - denser environment composition<br />
-        - click target hover verbs
-      </div>
-    </main>
+<div id="topbar">
+  <div>
+    <div class="title">Manala v16</div>
+    <div class="sub">RSC-style visual density pass / faux 3⁄4 renderer</div>
   </div>
-
-  <script type="module" src="src/game.js"></script>
+  <div id="hoverLabel" style="font-size:18px;color:#e8d17c;text-shadow:1px 1px 0 #4e4a2d;">Walk here</div>
+</div>
+<div id="wrap">
+  <canvas id="game" width="1500" height="950"></canvas>
+</div>
+<div id="note">
+  <b>v16 focus</b><br>
+  - bigger sprites and denser village composition<br>
+  - roads, fences, trees, wells, stalls, ore, water reeds<br>
+  - stronger RSC-like muted palette and shading<br>
+  - no gameplay rewrite in this pass
+</div>
+<script src="src/game.js"></script>
 </body>
 </html>
