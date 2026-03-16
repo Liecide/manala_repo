@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="56" height="84" viewBox="0 0 56 84">
+<defs>
+  <filter id="softShadow" x="-50%" y="-50%" width="200%" height="200%">
+    <feDropShadow dx="0" dy="1" stdDeviation="1" flood-opacity="0.15"/>
+  </filter>
+</defs>
+<ellipse cx="28" cy="76" rx="11" ry="5" fill="#6b624c" opacity="0.25"/>
+<g filter="url(#softShadow)">
+<path d="M18 28 L28 22 L38 28 L36 48 L20 48 Z" fill="#7f6140" stroke="#3c3226"/>
+<path d="M20 29 L28 25 L36 29 L34 47 L22 47 Z" fill="#7b6846"/>
+<rect x="18" y="34" width="6" height="19" fill="#b28d54" stroke="#3c3226"/>
+<rect x="32" y="32" width="6" height="21" fill="#c1b484" stroke="#3c3226"/>
+<rect x="20" y="53" width="5" height="19" fill="#484e6d" stroke="#2d2d2d"/>
+<rect x="31" y="49" width="5" height="23" fill="#3a415e" stroke="#2d2d2d"/>
+<rect x="20" y="71" width="7" height="5" fill="#24211d"/>
+<rect x="29" y="71" width="7" height="5" fill="#24211d"/>
+<circle cx="28" cy="17" r="7" fill="#d8b99a" stroke="#4f4032"/>
+<path d="M21 17 C22 7, 35 7, 35 18 L34 21 L22 21 Z" fill="#78573b" stroke="#3b2a1d"/>
+<rect x="40" y="35" width="10" height="3" rx="1" fill="#8d6c3f" stroke="#3c3226"/>
+<rect x="45" y="34" width="2" height="16" fill="#8d6c3f" stroke="#3c3226"/>
+</g></svg>
