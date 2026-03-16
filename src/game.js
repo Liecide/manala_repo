@@ -25,9 +25,9 @@ const dialogueText = document.getElementById('dialogueText');
 const dialogueChoices = document.getElementById('dialogueChoices');
 const dialogueClose = document.getElementById('dialogueClose');
 
-const SAVE_KEY = 'manala_v12_save';
+const SAVE_KEY = 'manala_v13_save';
 const world = { w: 34, h: 34, tileW: 64, tileH: 32 };
-const camera = { x: 0, y: 120, zoom: 1.65 };
+const camera = { x: 0, y: 96, zoom: 1.8 };
 const minZoom = 1.05;
 const maxZoom = 2.25;
 const cameraSpeed = 420;
@@ -181,12 +181,21 @@ function isoToScreen(x, y) {
   const sy = (x + y) * (world.tileH / 2);
   return { x: sx * camera.zoom + canvas.width / 2 + camera.x, y: sy * camera.zoom + camera.y };
 }
+function getCanvasMouse(event) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  return {
+    x: (event.clientX - rect.left) * scaleX,
+    y: (event.clientY - rect.top) * scaleY,
+  };
+}
 function screenToIso(sx, sy) {
-  const x = (sx - canvas.width / 2 - camera.x) / camera.zoom;
-  const y = (sy - camera.y) / camera.zoom;
-  const tx = (y / (world.tileH / 2) + x / (world.tileW / 2)) / 2;
-  const ty = (y / (world.tileH / 2) - x / (world.tileW / 2)) / 2;
-  return { x: Math.floor(tx), y: Math.floor(ty) };
+  const localX = (sx - canvas.width / 2 - camera.x) / camera.zoom;
+  const localY = ((sy - camera.y) / camera.zoom) - (world.tileH / 2);
+  const tx = (localY / (world.tileH / 2) + localX / (world.tileW / 2)) / 2;
+  const ty = (localY / (world.tileH / 2) - localX / (world.tileW / 2)) / 2;
+  return { x: Math.round(tx), y: Math.round(ty) };
 }
 function entityVerb(e) {
   switch (e.kind) {
@@ -229,13 +238,54 @@ function drawDiamond(x, y, fill, stroke) {
   ctx.lineWidth = Math.max(1, camera.zoom * 0.75);
   ctx.stroke();
 }
+function terrainAt(x, y) {
+  const road = Math.abs((x - y) - 1) <= 1 || ((x > 5 && x < 12 && y > 5 && y < 11)) || ((x > 27 && y > 22));
+  const shallowWater = (x > 18 && x < 24 && y > 11 && y < 16) || (x > 22 && x < 26 && y > 13 && y < 17);
+  const forest = (x > 11 && x < 20 && y > 7 && y < 14);
+  if (shallowWater) return 'water';
+  if (road) return 'road';
+  if (forest) return 'forest';
+  return 'grass';
+}
+function groundColors(type, x, y) {
+  const alt = (x + y) % 2 === 0;
+  if (type === 'road') return { fill: alt ? '#978c74' : '#8c826c', edge: '#655e50' };
+  if (type === 'water') return { fill: alt ? '#668aa0' : '#5f8095', edge: '#486272' };
+  if (type === 'forest') return { fill: alt ? '#7f8d58' : '#768451', edge: '#57653b' };
+  return { fill: alt ? '#8a9862' : '#81905c', edge: '#59653f' };
+}
+function drawTerrainDetails(x, y, type) {
+  const p = isoToScreen(x, y);
+  const hw = (world.tileW / 2) * camera.zoom;
+  const hh = (world.tileH / 2) * camera.zoom;
+  if (type === 'water') {
+    ctx.strokeStyle = 'rgba(209,234,255,.45)';
+    ctx.lineWidth = Math.max(1, camera.zoom * 0.55);
+    ctx.beginPath();
+    ctx.moveTo(p.x - hw * .45, p.y + hh * .95);
+    ctx.quadraticCurveTo(p.x, p.y + hh * .55, p.x + hw * .42, p.y + hh * .95);
+    ctx.stroke();
+  } else if (type === 'road') {
+    ctx.fillStyle = 'rgba(60,50,38,.10)';
+    ctx.fillRect(p.x - hw * .16, p.y + hh * .5, hw * .28, hh * .44);
+  } else if (type === 'grass' || type === 'forest') {
+    ctx.strokeStyle = type === 'forest' ? 'rgba(50,72,30,.33)' : 'rgba(103,122,63,.28)';
+    ctx.lineWidth = Math.max(1, camera.zoom * 0.45);
+    ctx.beginPath();
+    ctx.moveTo(p.x - hw * .18, p.y + hh * .95);
+    ctx.lineTo(p.x - hw * .08, p.y + hh * .7);
+    ctx.lineTo(p.x, p.y + hh * .96);
+    ctx.lineTo(p.x + hw * .12, p.y + hh * .72);
+    ctx.stroke();
+  }
+}
 function drawGround() {
   for (let y = 0; y < world.h; y++) {
     for (let x = 0; x < world.w; x++) {
-      let shade = (x + y) % 2 === 0 ? '#879561' : '#82905d';
-      if (x > 19 && y > 15) shade = (x + y) % 2 === 0 ? '#8e846d' : '#877b66';
-      if (x < 12 && y < 12) shade = (x + y) % 2 === 0 ? '#95a16b' : '#8d9964';
-      drawDiamond(x, y, shade, '#59653f');
+      const type = terrainAt(x, y);
+      const c = groundColors(type, x, y);
+      drawDiamond(x, y, c.fill, c.edge);
+      drawTerrainDetails(x, y, type);
     }
   }
 }
@@ -246,67 +296,103 @@ function drawShadow(x, y, rx = 16, ry = 8) {
   ctx.ellipse(p.x, p.y + world.tileH * camera.zoom * 0.75, rx * camera.zoom, ry * camera.zoom, 0, 0, Math.PI * 2);
   ctx.fill();
 }
+function darker(hex, amount = 26) {
+  const v = hex.replace('#', '');
+  const r = Math.max(0, parseInt(v.substring(0, 2), 16) - amount);
+  const g = Math.max(0, parseInt(v.substring(2, 4), 16) - amount);
+  const b = Math.max(0, parseInt(v.substring(4, 6), 16) - amount);
+  return `rgb(${r},${g},${b})`;
+}
 function drawHumanoid(e, colors) {
-  drawShadow(e.x, e.y, 11, 5);
+  drawShadow(e.x, e.y, 12, 5);
   const p = isoToScreen(e.x, e.y), z = camera.zoom;
-  ctx.fillStyle = '#00000022'; ctx.fillRect(p.x - 2*z, p.y - 10*z, 4*z, 8*z);
+  ctx.strokeStyle = '#2a2316';
+  ctx.lineWidth = Math.max(1, z * 0.7);
   ctx.fillStyle = colors.skin;
-  ctx.beginPath(); ctx.arc(p.x, p.y - 26*z, 5*z, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(p.x, p.y - 28*z, 5.5*z, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   ctx.fillStyle = colors.hair;
   if (colors.hairStyle !== 'bald') {
-    if (colors.hairStyle === 'crest') ctx.fillRect(p.x - 2*z, p.y - 36*z, 4*z, 7*z);
-    else if (colors.hairStyle === 'long') ctx.fillRect(p.x - 5*z, p.y - 31*z, 10*z, 7*z);
-    else ctx.fillRect(p.x - 5*z, p.y - 31*z, 10*z, 4*z);
+    if (colors.hairStyle === 'crest') ctx.fillRect(p.x - 2.25*z, p.y - 38*z, 4.5*z, 9*z);
+    else if (colors.hairStyle === 'long') { ctx.fillRect(p.x - 6*z, p.y - 33*z, 12*z, 8*z); ctx.fillRect(p.x - 4*z, p.y - 25*z, 8*z, 6*z); }
+    else ctx.fillRect(p.x - 6*z, p.y - 33*z, 12*z, 5*z);
   }
   ctx.fillStyle = colors.tunic;
-  ctx.fillRect(p.x - 7*z, p.y - 20*z, 14*z, 20*z);
+  ctx.fillRect(p.x - 8*z, p.y - 20*z, 16*z, 22*z);
+  ctx.fillStyle = darker(colors.tunic, 18);
+  ctx.fillRect(p.x - 8*z, p.y - 2*z, 16*z, 4*z);
+  ctx.strokeRect(p.x - 8*z, p.y - 20*z, 16*z, 22*z);
   if (colors.weapon) {
-    ctx.fillStyle = '#7d5a2f'; ctx.fillRect(p.x - 13*z, p.y - 18*z, 4*z, 17*z); ctx.fillRect(p.x - 9*z, p.y - 18*z, 8*z, 3*z);
+    ctx.fillStyle = '#7d5a2f'; ctx.fillRect(p.x - 14*z, p.y - 18*z, 3*z, 19*z);
+    ctx.fillStyle = '#bca97b'; ctx.fillRect(p.x - 15*z, p.y - 20*z, 5*z, 3*z);
+    ctx.strokeRect(p.x - 14*z, p.y - 18*z, 3*z, 19*z);
   }
   if (colors.shield) {
-    ctx.fillStyle = '#9ba1ad'; ctx.fillRect(p.x + 7*z, p.y - 18*z, 8*z, 16*z); ctx.fillStyle = '#6b7079'; ctx.fillRect(p.x + 12*z, p.y - 12*z, 2*z, 4*z);
+    ctx.fillStyle = '#9ba1ad'; ctx.fillRect(p.x + 7*z, p.y - 18*z, 9*z, 16*z);
+    ctx.fillStyle = '#6b7079'; ctx.fillRect(p.x + 11*z, p.y - 13*z, 2*z, 6*z);
+    ctx.strokeRect(p.x + 7*z, p.y - 18*z, 9*z, 16*z);
   }
   ctx.fillStyle = colors.legs;
-  ctx.fillRect(p.x - 6*z, p.y, 5*z, 18*z);
-  ctx.fillRect(p.x + 1*z, p.y, 5*z, 18*z);
+  ctx.fillRect(p.x - 6.5*z, p.y + 1*z, 5*z, 18*z);
+  ctx.fillRect(p.x + 1.5*z, p.y + 1*z, 5*z, 18*z);
+  ctx.fillStyle = darker(colors.legs, 10);
+  ctx.fillRect(p.x - 6.5*z, p.y + 13*z, 5*z, 6*z);
+  ctx.fillRect(p.x + 1.5*z, p.y + 13*z, 5*z, 6*z);
   ctx.fillStyle = '#222';
   ctx.fillRect(p.x - 7*z, p.y + 18*z, 6*z, 3*z); ctx.fillRect(p.x + 1*z, p.y + 18*z, 6*z, 3*z);
 }
 function drawHouse(e) {
   drawShadow(e.x, e.y, 18, 9); const p = isoToScreen(e.x, e.y), z = camera.zoom;
-  ctx.fillStyle = '#b79d6c'; ctx.fillRect(p.x - 18*z, p.y - 22*z, 36*z, 34*z);
-  ctx.fillStyle = '#7a4c28'; ctx.beginPath(); ctx.moveTo(p.x - 22*z, p.y - 22*z); ctx.lineTo(p.x, p.y - 42*z); ctx.lineTo(p.x + 22*z, p.y - 22*z); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#bfa57a'; ctx.fillRect(p.x - 19*z, p.y - 24*z, 38*z, 36*z);
+  ctx.fillStyle = '#d8c28d'; ctx.fillRect(p.x - 16*z, p.y - 21*z, 32*z, 29*z);
+  ctx.fillStyle = '#7c4d2b'; ctx.beginPath(); ctx.moveTo(p.x - 23*z, p.y - 24*z); ctx.lineTo(p.x, p.y - 45*z); ctx.lineTo(p.x + 23*z, p.y - 24*z); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#94623b'; ctx.beginPath(); ctx.moveTo(p.x - 18*z, p.y - 24*z); ctx.lineTo(p.x, p.y - 39*z); ctx.lineTo(p.x + 18*z, p.y - 24*z); ctx.closePath(); ctx.fill();
   ctx.fillStyle = '#61351d'; ctx.fillRect(p.x - 6*z, p.y - 2*z, 12*z, 14*z);
+  ctx.fillStyle = '#e7d8b0'; ctx.fillRect(p.x - 13*z, p.y - 14*z, 8*z, 7*z);
+  ctx.strokeStyle = '#2a2316'; ctx.strokeRect(p.x - 19*z, p.y - 24*z, 38*z, 36*z);
 }
 function drawForge(e) {
-  drawShadow(e.x, e.y, 16, 8); const p = isoToScreen(e.x, e.y), z = camera.zoom;
-  ctx.fillStyle = '#5f6067'; ctx.fillRect(p.x - 16*z, p.y - 18*z, 30*z, 22*z);
-  ctx.fillStyle = '#30333a'; ctx.fillRect(p.x - 12*z, p.y - 14*z, 22*z, 16*z);
-  ctx.fillStyle = '#f0a52f'; ctx.fillRect(p.x - 7*z, p.y - 9*z, 11*z, 8*z);
+  drawShadow(e.x, e.y, 17, 8); const p = isoToScreen(e.x, e.y), z = camera.zoom;
+  ctx.fillStyle = '#5f6067'; ctx.fillRect(p.x - 17*z, p.y - 19*z, 32*z, 24*z);
+  ctx.fillStyle = '#787a83'; ctx.fillRect(p.x - 14*z, p.y - 16*z, 26*z, 18*z);
+  ctx.fillStyle = '#30333a'; ctx.fillRect(p.x - 11*z, p.y - 13*z, 20*z, 14*z);
+  ctx.fillStyle = '#f0a52f'; ctx.fillRect(p.x - 8*z, p.y - 9*z, 12*z, 8*z);
+  ctx.fillStyle = '#ffd77a'; ctx.fillRect(p.x - 4*z, p.y - 7*z, 5*z, 3*z);
+  ctx.strokeStyle = '#2a2316'; ctx.strokeRect(p.x - 17*z, p.y - 19*z, 32*z, 24*z);
 }
 function drawAnvil(e) {
   drawShadow(e.x, e.y, 11, 5); const p = isoToScreen(e.x, e.y), z = camera.zoom;
-  ctx.fillStyle = '#7a7f8c'; ctx.fillRect(p.x - 9*z, p.y - 10*z, 18*z, 8*z); ctx.fillRect(p.x - 4*z, p.y - 2*z, 8*z, 10*z);
-  ctx.beginPath(); ctx.moveTo(p.x + 9*z, p.y - 10*z); ctx.lineTo(p.x + 16*z, p.y - 6*z); ctx.lineTo(p.x + 9*z, p.y - 2*z); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#7a7f8c'; ctx.fillRect(p.x - 10*z, p.y - 11*z, 20*z, 8*z); ctx.fillRect(p.x - 5*z, p.y - 3*z, 10*z, 11*z);
+  ctx.fillStyle = '#9298a8'; ctx.fillRect(p.x - 9*z, p.y - 10*z, 18*z, 4*z);
+  ctx.fillStyle = '#7a7f8c'; ctx.beginPath(); ctx.moveTo(p.x + 10*z, p.y - 11*z); ctx.lineTo(p.x + 18*z, p.y - 7*z); ctx.lineTo(p.x + 10*z, p.y - 3*z); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#2a2316'; ctx.strokeRect(p.x - 10*z, p.y - 11*z, 20*z, 8*z);
 }
 function drawTree(e) {
   drawShadow(e.x, e.y, 14, 6); const p = isoToScreen(e.x, e.y), z = camera.zoom;
-  ctx.fillStyle = '#7d5a2b'; ctx.fillRect(p.x - 4*z, p.y - 6*z, 8*z, 28*z);
-  ctx.fillStyle = '#58733d'; ctx.beginPath(); ctx.arc(p.x, p.y - 18*z, 16*z, 0, Math.PI * 2); ctx.fill(); ctx.fillRect(p.x - 16*z, p.y - 22*z, 32*z, 12*z);
+  ctx.fillStyle = '#7d5a2b'; ctx.fillRect(p.x - 4*z, p.y - 6*z, 8*z, 30*z);
+  ctx.fillStyle = '#6a8848'; ctx.beginPath(); ctx.arc(p.x, p.y - 24*z, 12*z, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(p.x - 8*z, p.y - 18*z, 12*z, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(p.x + 9*z, p.y - 16*z, 11*z, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#7da054'; ctx.beginPath(); ctx.arc(p.x, p.y - 18*z, 10*z, 0, Math.PI * 2); ctx.fill();
 }
 function drawFish(e) {
   drawShadow(e.x, e.y, 16, 5); const p = isoToScreen(e.x, e.y), z = camera.zoom;
-  ctx.fillStyle = '#4c8fbe'; ctx.fillRect(p.x - 20*z, p.y - 3*z, 40*z, 8*z); ctx.fillStyle = '#b9e4ff'; ctx.fillRect(p.x - 6*z, p.y - 8*z, 12*z, 4*z);
+  ctx.fillStyle = '#4c8fbe'; ctx.fillRect(p.x - 20*z, p.y - 3*z, 40*z, 9*z);
+  ctx.fillStyle = '#7eb9de'; ctx.fillRect(p.x - 17*z, p.y - 1*z, 34*z, 3*z);
+  ctx.fillStyle = '#b9e4ff'; ctx.fillRect(p.x - 7*z, p.y - 8*z, 14*z, 4*z);
 }
 function drawRock(e, color) {
   drawShadow(e.x, e.y, 14, 7); const p = isoToScreen(e.x, e.y), z = camera.zoom;
   ctx.fillStyle = color;
   ctx.beginPath(); ctx.moveTo(p.x - 12*z, p.y + 4*z); ctx.lineTo(p.x - 16*z, p.y - 8*z); ctx.lineTo(p.x - 4*z, p.y - 20*z); ctx.lineTo(p.x + 12*z, p.y - 12*z); ctx.lineTo(p.x + 16*z, p.y + 2*z); ctx.lineTo(p.x + 6*z, p.y + 14*z); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.moveTo(p.x - 5*z, p.y - 15*z); ctx.lineTo(p.x + 6*z, p.y - 11*z); ctx.lineTo(p.x + 1*z, p.y - 2*z); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#2a2316'; ctx.stroke();
 }
 function drawWolf(e) {
   drawShadow(e.x, e.y, 12, 5); const p = isoToScreen(e.x, e.y), z = camera.zoom;
-  ctx.fillStyle = '#838793'; ctx.fillRect(p.x - 12*z, p.y - 10*z, 22*z, 12*z); ctx.beginPath(); ctx.moveTo(p.x + 10*z, p.y - 10*z); ctx.lineTo(p.x + 20*z, p.y - 6*z); ctx.lineTo(p.x + 10*z, p.y); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#7f8391'; ctx.fillRect(p.x - 12*z, p.y - 10*z, 22*z, 12*z); ctx.fillStyle = '#979baa'; ctx.fillRect(p.x - 10*z, p.y - 8*z, 14*z, 4*z);
+  ctx.fillStyle = '#7f8391'; ctx.beginPath(); ctx.moveTo(p.x + 10*z, p.y - 10*z); ctx.lineTo(p.x + 21*z, p.y - 6*z); ctx.lineTo(p.x + 10*z, p.y); ctx.closePath(); ctx.fill();
   ctx.fillRect(p.x - 10*z, p.y + 2*z, 3*z, 10*z); ctx.fillRect(p.x - 2*z, p.y + 2*z, 3*z, 10*z); ctx.fillRect(p.x + 5*z, p.y + 2*z, 3*z, 10*z); ctx.fillRect(p.x + 12*z, p.y + 2*z, 3*z, 10*z);
+  ctx.strokeStyle = '#252019'; ctx.lineWidth = Math.max(1, z * 0.7); ctx.strokeRect(p.x - 12*z, p.y - 10*z, 22*z, 12*z);
   const bw = 22*z; ctx.fillStyle = '#2a2a2a'; ctx.fillRect(p.x - 11*z, p.y - 24*z, bw, 4*z); ctx.fillStyle = '#7cd26b'; ctx.fillRect(p.x - 11*z, p.y - 24*z, bw * (e.hp / e.maxHp), 4*z);
 }
 function drawEnemy(e) {
@@ -636,7 +722,7 @@ function getHoveredTarget(mx, my) {
   for (const e of getTargets()) {
     const p = isoToScreen(e.x, e.y);
     const d = Math.hypot(mx - p.x, my - (p.y - 12 * camera.zoom));
-    if (d < 34 * camera.zoom && d < bestDist) { best = e; bestDist = d; }
+    if (d < 30 * camera.zoom && d < bestDist) { best = e; bestDist = d; }
   }
   return best;
 }
@@ -726,7 +812,7 @@ window.addEventListener('mousemove', e => {
     camera.y = cameraStart.y + (e.clientY - dragStart.y);
     return;
   }
-  const rect = canvas.getBoundingClientRect(); const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
+  const { x: mx, y: my } = getCanvasMouse(e);
   hoverTarget = getHoveredTarget(mx, my);
   hoverVerb.textContent = hoverTarget ? entityVerb(hoverTarget) : 'Walk here';
 });
@@ -737,12 +823,16 @@ canvas.addEventListener('wheel', e => {
 }, { passive: false });
 canvas.addEventListener('click', e => {
   if (!gameStarted || dialogueOpen()) return;
-  const rect = canvas.getBoundingClientRect(); const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
+  const { x: mx, y: my } = getCanvasMouse(e);
   const target = getHoveredTarget(mx, my); const p = worldState.player;
   if (target) {
     if (combatLocked() && !target.__drop && !['wolf', 'bandit', 'skeleton', 'warden'].includes(target.kind)) { log('You cannot interact with that while in combat.', 'bad'); return; }
-    p.tx = clamp(target.x - (target.__drop ? 0 : 1), 0, world.w - 1);
-    p.ty = clamp(target.y, 0, world.h - 1);
+    const dx = target.x - p.x;
+    const dy = target.y - p.y;
+    const stepX = dx === 0 ? 0 : Math.sign(dx);
+    const stepY = dy === 0 ? 0 : Math.sign(dy);
+    p.tx = clamp(target.x - (target.__drop ? 0 : stepX), 0, world.w - 1);
+    p.ty = clamp(target.y - (target.__drop ? 0 : stepY), 0, world.h - 1);
     worldState.pendingTarget = target;
   } else {
     const tile = screenToIso(mx, my); p.tx = clamp(tile.x, 0, world.w - 1); p.ty = clamp(tile.y, 0, world.h - 1); worldState.pendingTarget = null;
