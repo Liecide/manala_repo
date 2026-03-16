@@ -1,31 +1,63 @@
 :root {
-  --bg: #4d5537;
-  --panel: #b7ad87;
-  --panel-edge: #3a3528;
-  --panel-shadow: #867d60;
-  --text: #1d1b16;
-  --accent: #eee0a9;
+  --bg: #1d2529;
+  --panel: #cabf9c;
+  --panel2: #b3a57d;
+  --text: #1a1206;
+  --muted: #4d4633;
+  --danger: #7f2a1e;
+  --good: #234c2f;
+  --border: #4d4127;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; background: linear-gradient(90deg, #41462f, #596345 14%, #596345 86%, #41462f); color: var(--text); font-family: Georgia, 'Times New Roman', serif; }
-body { min-height: 100vh; }
-.page { width: min(1220px, calc(100vw - 28px)); margin: 10px auto 18px; }
-.panel {
-  background: var(--panel);
-  border: 4px solid var(--panel-edge);
-  box-shadow: inset 0 0 0 2px #d8cfad;
+body {
+  margin: 0; font-family: Verdana, Arial, Helvetica, sans-serif;
+  background: linear-gradient(180deg, #4b4b43 0%, #26251f 100%); color: var(--text);
 }
-.topbar {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 12px; margin-bottom: 10px;
-}
-.title { font-size: 28px; font-weight: 700; }
-.hover-verb { font-size: 18px; color: #fff1af; text-shadow: 1px 1px 0 #654; font-weight: 700; }
-.help { padding: 10px 14px; margin-bottom: 10px; }
-.help h2 { margin: 0 0 6px; font-size: 18px; }
-.help ul { margin: 0; padding-left: 22px; line-height: 1.3; font-size: 16px; }
-.viewport-wrap { position: relative; height: auto; padding: 0; overflow: hidden; }
-#game { display: block; width: 100%; height: auto; background: #7b8760; image-rendering: pixelated; cursor: crosshair; }
-.corner-note {
-  position: absolute; left: 16px; bottom: 16px; background: rgba(58,53,40,.78); color: #f2e7bb; padding: 10px 12px; font-size: 16px; line-height: 1.25;
-}
+#app { display: flex; gap: 16px; padding: 16px; min-height: 100vh; }
+canvas { border: 3px solid #332915; background: #819063; image-rendering: pixelated; flex: 0 0 auto; cursor: crosshair; }
+#ui { width: 440px; display: flex; flex-direction: column; gap: 12px; }
+.classicCard { background: linear-gradient(180deg, var(--panel) 0%, var(--panel2) 100%); border: 3px solid var(--border); box-shadow: inset 0 0 0 2px #e6d8aa, 0 10px 30px rgba(0,0,0,0.25); }
+.classicInset { background: rgba(81,65,31,.12); border: 2px solid #71613d; box-shadow: inset 0 0 0 1px #d7c99e; }
+.panel { padding: 12px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+h1,h2,h3,p { margin: 0 0 8px 0; }
+.subtitle { color: var(--muted); font-size: 13px; }
+.log { background: rgba(63,54,34,.18); border: 2px solid #71613d; min-height: 150px; max-height: 280px; overflow: auto; padding: 8px; font-size: 13px; box-shadow: inset 0 0 0 1px #dbcd9e; }
+.log .entry { margin-bottom: 6px; color: #2b2415; }
+.log .good { color: var(--good); font-weight: 700; }
+.log .bad { color: var(--danger); font-weight: 700; }
+.kv { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; font-size: 13px; }
+.kv span:last-child { color: #2e2617; font-weight: 700; }
+.small { font-size: 12px; color: var(--muted); }
+.itemRow { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px; padding: 4px 6px; background: rgba(255,255,255,.2); border: 1px solid #8a7950; align-items: center; }
+.badge { color: #f4ead0; background: #32516b; padding: 1px 6px; font-size: 11px; border: 1px solid #173144; }
+.overlay { position: fixed; inset: 0; background: rgba(24,20,12,.86); display: flex; align-items: center; justify-content: center; z-index: 10; padding: 18px; }
+.creatorCard, .dialogueCard { width: min(980px, 100%); padding: 18px; }
+.dialogueCard { width: min(860px, 100%); max-height: 90vh; overflow: auto; }
+.creatorGrid { display: grid; grid-template-columns: repeat(2, minmax(220px,1fr)); gap: 12px; margin: 14px 0; }
+label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #241c10; font-weight: 700; }
+input, select, button { font-family: inherit; }
+input, select { background: #ede2bd; border: 2px solid #6d5f3a; color: var(--text); padding: 10px 12px; }
+.previewWrap { display: grid; grid-template-columns: 240px 1fr; gap: 18px; align-items: center; margin: 12px 0 18px; }
+.instructionsBlock { padding: 12px; }
+.bigButton, .smallButton { background: linear-gradient(180deg, #dfd0a2 0%, #baa36b 100%); color: #24190a; border: 2px solid #5f4c24; padding: 9px 14px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.bigButton.alt { background: linear-gradient(180deg, #cbd7df 0%, #93a7b5 100%); }
+.smallButton { font-size: 13px; padding: 7px 10px; }
+.smallButton.danger { background: linear-gradient(180deg, #d9a79e 0%, #ad6c61 100%); }
+.hidden { display: none; }
+.buttonRow, .buttonColumn, .dialogueChoices, .dialogueHeader, .titleRow { display: flex; gap: 10px; }
+.titleRow { justify-content: space-between; align-items: center; }
+.hoverVerb { color: #f7e6ab; font-size: 13px; font-weight: 700; text-shadow: 1px 1px 0 #58461c; }
+.buttonColumn { margin-top: 12px; flex-wrap: wrap; }
+.dialogueHeader { justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.dialogueChoices { flex-wrap: wrap; margin-top: 12px; }
+.dialogueText { min-height: 60px; padding: 12px; }
+.bankGrid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; margin-top: 12px; }
+.bankSlot { background: rgba(69,54,27,.14); border: 2px solid #766540; box-shadow: inset 0 0 0 1px #d7c99e; min-height: 120px; padding: 8px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; }
+.itemIcon { width: 44px; height: 44px; border: 2px solid #6f5d37; background: linear-gradient(180deg, #efe4bf 0%, #ccb47e 100%); position: relative; margin-bottom: 6px; }
+.itemIcon::after { content: attr(data-symbol); position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+.helpKey { display: inline-block; padding: 1px 6px; border: 1px solid #6c5c35; background: #e9dbb1; margin-right: 6px; }
+@media (max-width: 1600px) { #app { flex-direction: column; } #ui { width: 100%; } }
+@media (max-width: 760px) { .creatorGrid, .previewWrap, .grid, .bankGrid { grid-template-columns: 1fr; } }
+body.creatorMode #app { visibility: hidden; }
+#creatorPreview { display:block; width:220px; height:220px; }
